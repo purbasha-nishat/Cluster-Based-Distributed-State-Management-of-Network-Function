@@ -1,0 +1,37 @@
+version: "3.8"
+services:
+  hazelcast:
+    environment:
+      - HZ_CLUSTERNAME=deft-cluster
+    image: hazelcast/hazelcast:4.2.2
+    scale: ${HZ_CLUSTER_CNT}
+
+  hz_client:
+    build:
+      context: .
+      dockerfile: hz_client.Dockerfile
+    depends_on:
+      - hazelcast
+    volumes:
+      - ./results:/code/results
+    scale: ${HZ_CLIENT_CNT}
+
+  stamper:
+    build:
+        context: .
+        dockerfile: stamper.Dockerfile
+    scale: ${STAMPER_CNT}
+
+  nginx:
+    container_name: nginx
+    ports:
+      - 8080:8080/udp
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - stamper
+    image: nginx
+
+
+
+
