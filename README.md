@@ -18,7 +18,7 @@ sudo chmod +x net_setup.sh
 
 - To check log of a service
 ```
-docker-compose logs -f <service_name>
+sudo docker-compose logs -f <service_name>
 ```
 `<service_name>` can be `hazelcast`, `hz_client`, `stamper` or `nginx`
 

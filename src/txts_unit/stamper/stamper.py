@@ -46,13 +46,20 @@ class Stamper(DatagramProtocol):
 
         return self.flow_to_client[flow]
 
-    def stamp_packet(self, data, flow):
+    def stamp_packet(self, data, flow, hz_client_addr):
         if flow not in self.flow_pkt_cnt:
             self.flow_pkt_cnt[flow] = 0
 
-        stamp = f'\n{self.flow_pkt_cnt[flow]}\n'
-        data += bytes(stamp, 'ascii')
+        src_ip, src_port = flow
+        dst_ip, dst_port = hz_client_addr
 
+        print(data)
+
+        self.flow_pkt_cnt[flow] += 1
+        stamp = f'#{self.flow_pkt_cnt[flow]}#{src_ip}#{src_port}#{dst_ip}#{dst_port}'
+        print(f'stamp val: {self.flow_pkt_cnt[flow]}')
+        data += bytes(stamp, 'ascii')
+        print(data)
         return data
 
 
@@ -67,7 +74,9 @@ class Stamper(DatagramProtocol):
 
         print(f'forwarding to ip {dst_hz_client} & port {HZ_CLIENT_LISTEN_PORT}')
 
-        data = self.stamp_packet(data, src_addr)
+        dst_addr = dst_hz_client, HZ_CLIENT_LISTEN_PORT
+
+        data = self.stamp_packet(data, src_addr, dst_addr)
 
         self.transport.write(data, (dst_hz_client, HZ_CLIENT_LISTEN_PORT))
 
