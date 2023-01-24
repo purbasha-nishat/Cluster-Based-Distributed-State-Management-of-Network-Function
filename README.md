@@ -3,7 +3,7 @@
 
 - Run the docker-compose
 ```
-docker-compose up -d --build
+sudo docker-compose up -d --build
 ```
 
 - Make the `net_setup.sh` file executable

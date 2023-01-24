@@ -64,6 +64,36 @@ class State:
 
 
 class EchoUDP(DatagramProtocol):
+    def __init__(self):
+        self.flow_to_pkt_cnt = {}
+        self.all_flow_info = {}
+        self.own_ip = ''
+    
+    def update_flow_pkt_count(self, flow):
+        
+        if self.flow_to_pkt_cnt.get(flow) is not None:
+            self.flow_to_pkt_cnt[flow] +=1    
+        else:
+            self.flow_to_pkt_cnt[flow] = 1
+        
+        if self.all_flow_info.get(flow) is not None:
+            self.all_flow_info[flow] +=1    
+        else:
+            self.all_flow_info[flow] = 1
+        
+        print(f'updated pkt count for {flow} is {self.flow_to_pkt_cnt[flow]}')
+
+    def update_all_flow(self,pkt):
+        print('all flow\n\n')
+        print(f'update pkt:    {pkt}')
+        pkt_info = str(pkt).split("#")
+        flow = (pkt_info[1], pkt_info[2], pkt_info[3], pkt_info[4])
+        pkt_cnt = pkt_info[5]
+        if self.all_flow_info.get(flow) is not None:
+            self.all_flow_info[flow] = pkt_cnt    
+        else:
+            self.all_flow_info[flow] = pkt_cnt
+        print(f'all info dict: {self.all_flow_info}')
 
     def process_a_packet(self,packet, packet_id):
         Statistics.processed_pkts += 1
@@ -81,6 +111,9 @@ class EchoUDP(DatagramProtocol):
         print(f'packet info index 0 :    {pkt_info[0]}')
         print(f'pura packet arr :    {pkt_info}')
         local_pkt_id = pkt_info[1]
+        flow = (pkt_info[2], pkt_info[3], pkt_info[4], pkt_info[5])
+
+        self.update_flow_pkt_count(flow)
 
         Statistics.total_delay_time += Helpers.get_current_time_in_ms() - BufferTimeMaps.input_in[packet_id]
 
@@ -147,7 +180,19 @@ class EchoUDP(DatagramProtocol):
 
     def empty_output_buffer(self):
         print("----------Inside empty output buffer-----------")
-        
+
+        # sending info to all members of a cluster // flow_id and pkt_cnt
+        for f in self.flow_to_pkt_cnt:
+            src_ip , src_port , dst_ip , dst_port = f
+            pkt = f'update#{src_ip}#{src_port}#{dst_ip}#{dst_port}#{self.flow_to_pkt_cnt[f]}'
+            
+            for i in range(HZ_CLIENT_CNT):
+                sending_ip = HZ_CLIENT_IP_PATTERN.replace('$', str(i + 2))
+                print(f' dest_ip: {dst_ip} and sending_ip: {sending_ip}')
+                if sending_ip != dst_ip:
+                    self.transport.write(bytes(pkt, 'utf-8'), (sending_ip, HZ_CLIENT_LISTEN_PORT))
+
+        # sending info to its own backup
         while not Buffers.output_buffer.empty():
 
             pkt, pkt_id = Buffers.output_buffer.get()
@@ -160,7 +205,6 @@ class EchoUDP(DatagramProtocol):
             dst_ip = x[0] + "." + x[1] + "." + x[2] + "." + str(int(x[3]) + HZ_CLIENT_CNT)
             print(f'need to send to ---------- {dst_ip}')
 
-            # src_port = 5000
             self.transport.write(bytes(pkt, 'utf-8'), (dst_ip, HZ_CLIENT_LISTEN_PORT))
             # print(f'current pkt {pkt_id}')
             Statistics.total_delay_time += Helpers.get_current_time_in_ms() - BufferTimeMaps.output_in[pkt_id]
@@ -190,12 +234,24 @@ class EchoUDP(DatagramProtocol):
         if Statistics.received_packets == 0:
             Timestamps.start_time = Helpers.get_current_time_in_ms()
 
-        Statistics.received_packets += 1
+
         print(f'received pkts: {Statistics.received_packets}')
         # redis_client.incr("packet_count " + host_var)
         print(f' received pkt ashol: {pkt}')
         modified_pkt = str(pkt)[2:-1]
         print(f' received pkt modified: {modified_pkt}')
+
+        x = modified_pkt.split("#")
+        if x[0] == "update":
+            self.update_all_flow(modified_pkt)
+            return
+
+        Statistics.received_packets += 1
+
+        if Statistics.received_packets == 1:
+            x = modified_pkt.split("#")
+            self.own_ip = x[4]
+            print(f'own ip: {self.own_ip}')
 
         if Buffers.input_buffer.qsize() < Limit.BUFFER_LIMIT:
             Buffers.input_buffer.put((modified_pkt, Statistics.received_packets))
