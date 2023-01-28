@@ -11,7 +11,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 HZ_CLIENT_CNT = int(os.getenv('HZ_CLIENT_CNT'))
-HZ_CLIENT_IP_PATTERN_one = os.getenv('HZ_CLIENT_IP_PATTERN_one')
 
 HZ_CLIENT_LISTEN_PORT = int(os.getenv('HZ_CLIENT_LISTEN_PORT'))
 
@@ -43,7 +42,7 @@ class Timestamps:
 
 class Limit:
     BATCH_SIZE = int(os.getenv('BATCH_SIZE'))
-    PKTS_NEED_TO_PROCESS = 1000
+    PKTS_NEED_TO_PROCESS = 250
     GLOBAL_UPDATE_FREQUENCY = 1
     BUFFER_LIMIT = 1 * BATCH_SIZE
 
@@ -81,11 +80,11 @@ class EchoUDP(DatagramProtocol):
         else:
             self.all_flow_info[flow] = 1
         
-        print(f'updated pkt count for {flow} is {self.flow_to_pkt_cnt[flow]}')
+            # print(f'updated pkt count for {flow} is {self.flow_to_pkt_cnt[flow]}')
 
     def update_all_flow(self,pkt):
-        print('all flow\n\n')
-        print(f'update pkt:    {pkt}')
+        # print('all flow\n\n')
+        # print(f'update pkt:    {pkt}')
         pkt_info = str(pkt).split("#")
         flow = (pkt_info[1], pkt_info[2], pkt_info[3], pkt_info[4])
         pkt_cnt = pkt_info[5]
@@ -98,7 +97,7 @@ class EchoUDP(DatagramProtocol):
     def process_a_packet(self,packet, packet_id):
         Statistics.processed_pkts += 1
         Statistics.total_packet_size += len(packet)
-        print(f'Length of packet is {len(packet)}')
+        # print(f'Length of packet is {len(packet)}')
         print(f'Processed pkts: {Statistics.processed_pkts}')
 
         # index 0: b'data 
@@ -108,8 +107,6 @@ class EchoUDP(DatagramProtocol):
         # index 4: dst_ip
         # index 5: dst_port (hazelcast client addr)
         pkt_info = str(packet).split("#")
-        print(f'packet info index 0 :    {pkt_info[0]}')
-        print(f'pura packet arr :    {pkt_info}')
         local_pkt_id = pkt_info[1]
         flow = (pkt_info[2], pkt_info[3], pkt_info[4], pkt_info[5])
 
@@ -141,7 +138,7 @@ class EchoUDP(DatagramProtocol):
             if pkt_num_of_cur_batch % uniform_global_distance == 0 or pkt_num_of_cur_batch == Limit.BATCH_SIZE:
                 self.global_state_update(10)
 
-            if Statistics.processed_pkts + Statistics.packet_dropped == Limit.PKTS_NEED_TO_PROCESS:
+            if Statistics.processed_pkts + Statistics.packet_dropped >= Limit.PKTS_NEED_TO_PROCESS:
                 time_delta = Helpers.get_current_time_in_ms() - Timestamps.start_time
                 process_time = time_delta / 1000.0 + Statistics.total_three_pc_time
 
@@ -166,44 +163,35 @@ class EchoUDP(DatagramProtocol):
             # f.write('Latency(ms), Throughput(byte/s), Packets Dropped\n')
             f.write(f'{latency},{throughput},{Statistics.packet_dropped}\n')
 
-    # def send_packet(self,pkt, pkt_id, src_ip, src_port, dst_ip, dst_port):
-    #     print("inside send pkt to backup")
-    #     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    #     server_address = (src_ip, src_port)
-    #     address = (dst_ip, 5000)
-    #     s.connect(address)
-    #     print(f' sending to ----- {address}')
-    #     s.send(pkt.encode('utf-8'))
-    #     print("data gese-----------------------")
-    #     s.close()
-
 
     def empty_output_buffer(self):
         print("----------Inside empty output buffer-----------")
 
-        # # sending info to all members of a cluster // flow_id and pkt_cnt
-        # for f in self.flow_to_pkt_cnt:
-        #     src_ip , src_port , dst_ip , dst_port = f
-        #     pkt = f'update#{src_ip}#{src_port}#{dst_ip}#{dst_port}#{self.flow_to_pkt_cnt[f]}'
+        # sending info to all members of a cluster // flow_id and pkt_cnt
+        for f in self.flow_to_pkt_cnt:
+            src_ip , src_port , dst_ip , dst_port = f
+            pkt = f'update#{src_ip}#{src_port}#{dst_ip}#{dst_port}#{self.flow_to_pkt_cnt[f]}'
             
-        #     for i in range(HZ_CLIENT_CNT):
-        #         sending_ip = HZ_CLIENT_IP_PATTERN_one.replace('$', str(i + 2))
-        #         print(f' dest_ip: {dst_ip} and sending_ip: {sending_ip}')
-        #         if sending_ip != dst_ip:
-        #             self.transport.write(bytes(pkt, 'utf-8'), (sending_ip, HZ_CLIENT_LISTEN_PORT))
+            for i in range(HZ_CLIENT_CNT):
+                ip_breakdown = dst_ip.split('.')
+                sending_ip = ip_breakdown[0] + '.' + ip_breakdown[1] + '.' + ip_breakdown[2] + '.' + str(i+2)
+                # print(f' going from dest_ip: {dst_ip} and sending_ip in cluster: {sending_ip} -----------------')
+                if sending_ip != dst_ip:
+                    # print(f'asholei going from dest_ip: {dst_ip} and sending_ip in cluster: {sending_ip} -----------------')
+                    self.transport.write(bytes(pkt, 'utf-8'), (sending_ip, HZ_CLIENT_LISTEN_PORT))
 
         # sending info to its own backup
         while not Buffers.output_buffer.empty():
 
             pkt, pkt_id = Buffers.output_buffer.get()
-            print(f'data: {pkt} \n')
+            # print(f'data: {pkt} \n')
             pkt_info = str(pkt).split("#")
             print(f'{pkt_info}')
             print(f'{pkt_info[3]}')
             src_ip , dst_port = pkt_info[4] , pkt_info[5] # from hz_client's perspective (sending to backup)
             x = src_ip.split(".")
             dst_ip = x[0] + "." + x[1] + "." + x[2] + "." + str(int(x[3]) + HZ_CLIENT_CNT)
-            print(f'need to send to ---------- {dst_ip}')
+            # print(f'need to send to ---------- {dst_ip}')
 
             self.transport.write(bytes(pkt, 'utf-8'), (dst_ip, HZ_CLIENT_LISTEN_PORT))
             # print(f'current pkt {pkt_id}')
@@ -213,7 +201,7 @@ class EchoUDP(DatagramProtocol):
     def local_state_update(self):
         # local state update
         # print("------------------------------------------------------------------------------------------------------")
-        print(f'replicating on backup as per batch.\n cur_batch: {State.per_flow_cnt}')
+        # print(f'replicating on backup as per batch.\n cur_batch: {State.per_flow_cnt}')
         cur_time = Helpers.get_current_time_in_ms()
         global_state = per_flow_packet_counter.get("global")
         master.replicate(global_state)
@@ -222,7 +210,7 @@ class EchoUDP(DatagramProtocol):
 
     def global_state_update(self,batches_processed: int):
         # global state update
-        print(f'Global state update')
+        # print(f'Global state update')
         map_key = "global"
         per_flow_packet_counter.lock(map_key)
         value = per_flow_packet_counter.get(map_key)
@@ -237,9 +225,9 @@ class EchoUDP(DatagramProtocol):
 
         print(f'received pkts: {Statistics.received_packets}')
         # redis_client.incr("packet_count " + host_var)
-        print(f' received pkt ashol: {pkt}')
+        # print(f' received pkt ashol: {pkt}')
         modified_pkt = str(pkt)[2:-1]
-        print(f' received pkt modified: {modified_pkt}')
+        # print(f' received pkt modified: {modified_pkt}')
 
         x = modified_pkt.split("#")
         if x[0] == "update":

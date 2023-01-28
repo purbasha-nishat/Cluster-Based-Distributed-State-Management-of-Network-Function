@@ -11,6 +11,7 @@ HZ_CLIENT_CNT = int(os.getenv('HZ_CLIENT_CNT'))
 HZ_CLIENT_CLUSTER_CNT = int(os.getenv('HZ_CLIENT_CLUSTER_CNT'))
 HZ_CLIENT_IP_PATTERN_one = os.getenv('HZ_CLIENT_IP_PATTERN_one')
 HZ_CLIENT_IP_PATTERN_two = os.getenv('HZ_CLIENT_IP_PATTERN_two')
+HZ_CLIENT_IP_PATTERN_three = os.getenv('HZ_CLIENT_IP_PATTERN_three')
 
 STAMPER_LISTEN_PORT = int(os.getenv('STAMPER_LISTEN_PORT'))
 HZ_CLIENT_LISTEN_PORT = int(os.getenv('HZ_CLIENT_LISTEN_PORT'))
@@ -39,6 +40,9 @@ class Stamper(DatagramProtocol):
             self.hz_client_ips.append(client_ip)
         for i in range(HZ_CLIENT_CNT):
             client_ip = HZ_CLIENT_IP_PATTERN_two.replace('$', str(i + 2))
+            self.hz_client_ips.append(client_ip)
+        for i in range(HZ_CLIENT_CNT):
+            client_ip = HZ_CLIENT_IP_PATTERN_three.replace('$', str(i + 2))
             self.hz_client_ips.append(client_ip)
         
         print('Configured hz_clint IP list:')
