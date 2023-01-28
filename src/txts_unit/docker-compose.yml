@@ -14,7 +14,7 @@ services:
       - hazelcast
     volumes:
       - ./results:/code/results
-    scale: ${HZ_CLIENT_CNT}
+    scale: 4
 
   hz_client_backup:
     build:
@@ -24,7 +24,7 @@ services:
       - hazelcast
     volumes:
       - ./results:/code/results
-    scale: ${HZ_CLIENT_CNT}
+    scale: 4
 
   stamper:
     build:

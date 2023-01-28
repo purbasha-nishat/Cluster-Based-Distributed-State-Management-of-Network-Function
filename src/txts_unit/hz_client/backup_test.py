@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 HZ_CLIENT_CNT = int(os.getenv('HZ_CLIENT_CNT'))
-HZ_CLIENT_IP_PATTERN = os.getenv('HZ_CLIENT_IP_PATTERN')
+HZ_CLIENT_IP_PATTERN_one = os.getenv('HZ_CLIENT_IP_PATTERN_one')
 
 HZ_CLIENT_LISTEN_PORT = int(os.getenv('HZ_CLIENT_LISTEN_PORT'))
 
@@ -32,7 +32,7 @@ class Backup(DatagramProtocol):
 
         # for i in range(HZ_CLIENT_CNT):
         #     # adding with `i+2` because the ip of the ovs-br1 interface will be 173.16.1.1
-        #     client_ip = HZ_CLIENT_IP_PATTERN.replace('$', str(i + 2))
+        #     client_ip = HZ_CLIENT_IP_PATTERN_one.replace('$', str(i + 2))
         #     self.hz_client_ips.append(client_ip)
         
         # print('Configured hz_clint IP list:')

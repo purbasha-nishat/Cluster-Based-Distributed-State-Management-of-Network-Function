@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 HZ_CLIENT_CNT = int(os.getenv('HZ_CLIENT_CNT'))
-HZ_CLIENT_IP_PATTERN = os.getenv('HZ_CLIENT_IP_PATTERN')
+HZ_CLIENT_IP_PATTERN_one = os.getenv('HZ_CLIENT_IP_PATTERN_one')
 
 HZ_CLIENT_LISTEN_PORT = int(os.getenv('HZ_CLIENT_LISTEN_PORT'))
 
@@ -181,16 +181,16 @@ class EchoUDP(DatagramProtocol):
     def empty_output_buffer(self):
         print("----------Inside empty output buffer-----------")
 
-        # sending info to all members of a cluster // flow_id and pkt_cnt
-        for f in self.flow_to_pkt_cnt:
-            src_ip , src_port , dst_ip , dst_port = f
-            pkt = f'update#{src_ip}#{src_port}#{dst_ip}#{dst_port}#{self.flow_to_pkt_cnt[f]}'
+        # # sending info to all members of a cluster // flow_id and pkt_cnt
+        # for f in self.flow_to_pkt_cnt:
+        #     src_ip , src_port , dst_ip , dst_port = f
+        #     pkt = f'update#{src_ip}#{src_port}#{dst_ip}#{dst_port}#{self.flow_to_pkt_cnt[f]}'
             
-            for i in range(HZ_CLIENT_CNT):
-                sending_ip = HZ_CLIENT_IP_PATTERN.replace('$', str(i + 2))
-                print(f' dest_ip: {dst_ip} and sending_ip: {sending_ip}')
-                if sending_ip != dst_ip:
-                    self.transport.write(bytes(pkt, 'utf-8'), (sending_ip, HZ_CLIENT_LISTEN_PORT))
+        #     for i in range(HZ_CLIENT_CNT):
+        #         sending_ip = HZ_CLIENT_IP_PATTERN_one.replace('$', str(i + 2))
+        #         print(f' dest_ip: {dst_ip} and sending_ip: {sending_ip}')
+        #         if sending_ip != dst_ip:
+        #             self.transport.write(bytes(pkt, 'utf-8'), (sending_ip, HZ_CLIENT_LISTEN_PORT))
 
         # sending info to its own backup
         while not Buffers.output_buffer.empty():
