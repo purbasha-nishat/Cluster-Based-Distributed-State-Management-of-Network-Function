@@ -66,8 +66,16 @@ class EchoUDP(DatagramProtocol):
     def __init__(self):
         self.flow_to_pkt_cnt = {}
         self.all_flow_info = {}
+        self.pending_pkt_map = {}       # (flow_id -> pq of pkt cnt) 
+        self.flow_id_pkt_id_to_pkt = {}
+        self.next_expected_stamp_id = {}
         self.own_ip = ''
     
+    def get_flow_id(self, pkt):
+        pkt_info = str(pkt).split("#")
+        flow_id = (pkt_info[2], pkt_info[3], pkt_info[4], pkt_info[5])
+        return flow_id
+
     def update_flow_pkt_count(self, flow):
         
         if self.flow_to_pkt_cnt.get(flow) is not None:
@@ -94,9 +102,9 @@ class EchoUDP(DatagramProtocol):
             self.all_flow_info[flow] = pkt_cnt
         print(f'all info dict: {self.all_flow_info}')
 
-    def process_a_packet(self,packet, packet_id):
+    def process_a_packet(self,pkt, pkt_id):
         Statistics.processed_pkts += 1
-        Statistics.total_packet_size += len(packet)
+        Statistics.total_packet_size += len(pkt)
         # print(f'Length of packet is {len(packet)}')
         print(f'Processed pkts: {Statistics.processed_pkts}')
 
@@ -106,16 +114,66 @@ class EchoUDP(DatagramProtocol):
         # index 3: src_port
         # index 4: dst_ip
         # index 5: dst_port (hazelcast client addr)
-        pkt_info = str(packet).split("#")
+        pkt_info = str(pkt).split("#")
         local_pkt_id = pkt_info[1]
-        flow = (pkt_info[2], pkt_info[3], pkt_info[4], pkt_info[5])
+        flow_id = self.get_flow_id(pkt)
 
-        self.update_flow_pkt_count(flow)
+        self.update_flow_pkt_count(flow_id)
 
-        Statistics.total_delay_time += Helpers.get_current_time_in_ms() - BufferTimeMaps.input_in[packet_id]
+        Statistics.total_delay_time += Helpers.get_current_time_in_ms() - BufferTimeMaps.input_in[pkt_id]
 
-        Buffers.output_buffer.put((packet, packet_id))
-        BufferTimeMaps.output_in[packet_id] = Helpers.get_current_time_in_ms()
+        Buffers.output_buffer.put((pkt, pkt_id))
+        BufferTimeMaps.output_in[pkt_id] = Helpers.get_current_time_in_ms()
+
+    def should_process_pkt(self, pkt):
+        # print("-------------should process pkt\n\n-----------------")
+        pkt_info = str(pkt).split("#")
+        
+        pkt_id = int(pkt_info[1])
+        flow_id = self.get_flow_id(pkt)
+        
+        if flow_id not in self.next_expected_stamp_id:
+            self.next_expected_stamp_id[flow_id] = 1
+
+        if pkt_id == self.next_expected_stamp_id[flow_id]:
+            self.next_expected_stamp_id[flow_id] += 1
+            return True
+
+        return False
+
+    def should_pop_from_pending_map (self,flow_id):
+        # print('-----------------should pop from pending list-----------------\n\n')
+
+        # print(self.pending_pkt_map[flow_id])
+
+        if self.pending_pkt_map.get(flow_id) is not None:
+            if not self.pending_pkt_map[flow_id].empty():
+                pkt_id = self.pending_pkt_map[flow_id].queue[0]
+                if pkt_id == self.next_expected_stamp_id[flow_id]:
+                    self.next_expected_stamp_id[flow_id] += 1
+                    return True
+                else:
+                    return False
+            else:
+                return False
+        else:
+            return False
+
+    def insert_in_pending_map (self,pkt):
+
+        # print('-----------------pending list-----------------\n\n')
+        pkt_info = str(pkt).split("#")
+        pkt_cnt = int(pkt_info[1])
+        flow_id = self.get_flow_id(pkt)
+
+        if self.pending_pkt_map.get(flow_id) is not None:
+            self.pending_pkt_map[flow_id].put(pkt_cnt)
+        else:
+            self.pending_pkt_map[flow_id] = queue.PriorityQueue()
+            self.pending_pkt_map[flow_id].put(pkt_cnt)
+
+        # print(f'pending list: {self.pending_pkt_map[flow_id].queue} size: {self.pending_pkt_map[flow_id].qsize()}')
+        self.flow_id_pkt_id_to_pkt[(flow_id, pkt_cnt)] = pkt
 
 
     def process_packet_with_hazelcast(self):
@@ -125,11 +183,22 @@ class EchoUDP(DatagramProtocol):
         while True:
             pkt, pkt_id = Buffers.input_buffer.get()
 
-            print(f'packet is {pkt}')
-            self.process_a_packet(pkt, pkt_id)       
+            print(f'packet in process pkt with hz: {pkt}')
 
-            pkt_num_of_cur_batch += 1
+            if not self.should_process_pkt(pkt):
+                print(f'---------------------------waiting list e ------ {pkt_id}')
+                self.insert_in_pending_map(pkt)
+            else: 
+                self.process_a_packet(pkt, pkt_id)       
+                pkt_num_of_cur_batch += 1
 
+            flow_id = self.get_flow_id(pkt)
+            while self.should_pop_from_pending_map(flow_id):
+                pkt_id = self.pending_pkt_map[flow_id].get()
+                pkt = self.flow_id_pkt_id_to_pkt[(flow_id, pkt_id)]
+                self.process_a_packet(pkt, int(pkt_id))
+                pkt_num_of_cur_batch += 1
+            
             if Buffers.output_buffer.qsize() == Limit.BATCH_SIZE:
                 pkt_num_of_cur_batch = 0
                 self.empty_output_buffer()
@@ -175,7 +244,6 @@ class EchoUDP(DatagramProtocol):
             for i in range(HZ_CLIENT_CNT):
                 ip_breakdown = dst_ip.split('.')
                 sending_ip = ip_breakdown[0] + '.' + ip_breakdown[1] + '.' + ip_breakdown[2] + '.' + str(i+2)
-                # print(f' going from dest_ip: {dst_ip} and sending_ip in cluster: {sending_ip} -----------------')
                 if sending_ip != dst_ip:
                     # print(f'asholei going from dest_ip: {dst_ip} and sending_ip in cluster: {sending_ip} -----------------')
                     self.transport.write(bytes(pkt, 'utf-8'), (sending_ip, HZ_CLIENT_LISTEN_PORT))
@@ -222,8 +290,8 @@ class EchoUDP(DatagramProtocol):
         if Statistics.received_packets == 0:
             Timestamps.start_time = Helpers.get_current_time_in_ms()
 
-
-        print(f'received pkts: {Statistics.received_packets}')
+        Statistics.received_packets += 1
+        print(f'received pkts: {Statistics.received_packets} and pkt: {pkt}')
         # redis_client.incr("packet_count " + host_var)
         # print(f' received pkt ashol: {pkt}')
         modified_pkt = str(pkt)[2:-1]
@@ -234,7 +302,6 @@ class EchoUDP(DatagramProtocol):
             self.update_all_flow(modified_pkt)
             return
 
-        Statistics.received_packets += 1
 
         if Statistics.received_packets == 1:
             x = modified_pkt.split("#")
