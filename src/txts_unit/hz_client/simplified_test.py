@@ -301,6 +301,17 @@ class EchoUDP(DatagramProtocol):
         if x[0] == "update":
             self.update_all_flow(modified_pkt)
             return
+        elif x[0] == "migrate":
+            # 0 : migrate
+            # 1 : src_ip
+            # 2 : src_port
+            # 3 : dst_ip
+            # 4 : dst_port
+            # 5 : new_dst_ip
+            # 6 : new_dst_port
+
+            print(f'\n\n------------------Migrate message received by {x[3]}: {modified_pkt}--------------\n\n')
+            return
 
 
         if Statistics.received_packets == 1:

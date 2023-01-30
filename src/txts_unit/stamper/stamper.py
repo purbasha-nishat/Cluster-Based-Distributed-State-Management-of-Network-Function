@@ -56,6 +56,9 @@ class Stamper(DatagramProtocol):
         print(self.hz_client_ips)
 
     def select_hz_client(self, flow):
+
+        # migration = False
+
         if flow not in self.flow_to_client:
             self.flow_to_client[flow] = self.hz_client_ips[self.next_client]
 
@@ -65,14 +68,40 @@ class Stamper(DatagramProtocol):
 
         ##############  if the packet count for an hz_client exceeds the desired number    ################
         elif self.hz_client_to_packet_count[self.flow_to_client[flow]] > TOTAL_PACKETS_RECEIVED_PER_NF:
+            
+            # self.hz_client_to_packet_count[self.flow_to_client[flow]] = 0
+
+            src_ip, src_port = flow
+            dst_ip, dst_port = self.flow_to_client[flow], HZ_CLIENT_LISTEN_PORT
+
 
             # choose another hz_client
+            self.flow_to_client[flow] = self.hz_client_ips[self.next_client]
             self.next_client = (self.next_client + 1) % (HZ_CLIENT_CNT*HZ_CLIENT_CLUSTER_CNT)
 
-            # redirect the flow to the new hz_client
-            self.flow_to_client[flow] = self.hz_client_ips[self.next_client]
+            new_dst_ip, new_dst_port = self.flow_to_client[flow], HZ_CLIENT_LISTEN_PORT
+
+            pkt = f'migrate#{src_ip}#{src_port}#{dst_ip}#{dst_port}#{new_dst_ip}#{new_dst_port}'
+
+            print(f'\n\n-------MIGRATION MESSAGE : {pkt}-------------\n\n')
+            self.transport.write(bytes(pkt, 'utf-8'), (dst_ip, dst_port))
+            
+            # for i in range(HZ_CLIENT_CNT):
+            #     ip_breakdown = dst_ip.split('.')
+            #     sending_ip = ip_breakdown[0] + '.' + ip_breakdown[1] + '.' + ip_breakdown[2] + '.' + str(i+2)
+            #     if sending_ip != dst_ip:
+            #         # print(f'asholei going from dest_ip: {dst_ip} and sending_ip in cluster: {sending_ip} -----------------')
+            #         self.transport.write(bytes(pkt, 'utf-8'), (sending_ip, HZ_CLIENT_LISTEN_PORT))
+
+            # # choose another hz_client
+            # self.next_client = (self.next_client + 1) % (HZ_CLIENT_CNT*HZ_CLIENT_CLUSTER_CNT)
+
+            # # redirect the flow to the new hz_client
+            # self.flow_to_client[flow] = self.hz_client_ips[self.next_client]
+
+            # migration = True
                 
-            # self.hz_client_to_packet_count[self.flow_to_client[flow]] = 0
+            self.hz_client_to_packet_count[self.flow_to_client[flow]] = 0
 
         return self.flow_to_client[flow]
 
