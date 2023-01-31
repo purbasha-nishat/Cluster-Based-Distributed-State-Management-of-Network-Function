@@ -35,7 +35,7 @@ class Stamper(DatagramProtocol):
         self.flow_pkt_cnt = {}
 
         # new dictionary to store ip_addr_to_packet_count
-        self.hz_client_to_packet_count = {}
+        # self.hz_client_to_packet_count = {}
 
 
 
@@ -67,41 +67,41 @@ class Stamper(DatagramProtocol):
             self.next_client = (self.next_client + 1) % (HZ_CLIENT_CNT*HZ_CLIENT_CLUSTER_CNT)
 
         ##############  if the packet count for an hz_client exceeds the desired number    ################
-        elif self.hz_client_to_packet_count[self.flow_to_client[flow]] > TOTAL_PACKETS_RECEIVED_PER_NF:
+        # elif self.hz_client_to_packet_count[self.flow_to_client[flow]] > TOTAL_PACKETS_RECEIVED_PER_NF:
             
-            # self.hz_client_to_packet_count[self.flow_to_client[flow]] = 0
+        #     # self.hz_client_to_packet_count[self.flow_to_client[flow]] = 0
 
-            src_ip, src_port = flow
-            dst_ip, dst_port = self.flow_to_client[flow], HZ_CLIENT_LISTEN_PORT
+        #     src_ip, src_port = flow
+        #     dst_ip, dst_port = self.flow_to_client[flow], HZ_CLIENT_LISTEN_PORT
 
 
-            # choose another hz_client
-            self.flow_to_client[flow] = self.hz_client_ips[self.next_client]
-            self.next_client = (self.next_client + 1) % (HZ_CLIENT_CNT*HZ_CLIENT_CLUSTER_CNT)
+        #     # choose another hz_client
+        #     self.flow_to_client[flow] = self.hz_client_ips[self.next_client]
+        #     self.next_client = (self.next_client + 1) % (HZ_CLIENT_CNT*HZ_CLIENT_CLUSTER_CNT)
 
-            new_dst_ip, new_dst_port = self.flow_to_client[flow], HZ_CLIENT_LISTEN_PORT
+        #     new_dst_ip, new_dst_port = self.flow_to_client[flow], HZ_CLIENT_LISTEN_PORT
 
-            pkt = f'migrate#{src_ip}#{src_port}#{dst_ip}#{dst_port}#{new_dst_ip}#{new_dst_port}'
+        #     pkt = f'migrate#{src_ip}#{src_port}#{dst_ip}#{dst_port}#{new_dst_ip}#{new_dst_port}'
 
-            print(f'\n\n-------MIGRATION MESSAGE : {pkt}-------------\n\n')
-            self.transport.write(bytes(pkt, 'utf-8'), (dst_ip, dst_port))
+        #     print(f'\n\n-------MIGRATION MESSAGE : {pkt}-------------\n\n')
+        #     self.transport.write(bytes(pkt, 'utf-8'), (dst_ip, dst_port))
             
-            # for i in range(HZ_CLIENT_CNT):
-            #     ip_breakdown = dst_ip.split('.')
-            #     sending_ip = ip_breakdown[0] + '.' + ip_breakdown[1] + '.' + ip_breakdown[2] + '.' + str(i+2)
-            #     if sending_ip != dst_ip:
-            #         # print(f'asholei going from dest_ip: {dst_ip} and sending_ip in cluster: {sending_ip} -----------------')
-            #         self.transport.write(bytes(pkt, 'utf-8'), (sending_ip, HZ_CLIENT_LISTEN_PORT))
+        #     # for i in range(HZ_CLIENT_CNT):
+        #     #     ip_breakdown = dst_ip.split('.')
+        #     #     sending_ip = ip_breakdown[0] + '.' + ip_breakdown[1] + '.' + ip_breakdown[2] + '.' + str(i+2)
+        #     #     if sending_ip != dst_ip:
+        #     #         # print(f'asholei going from dest_ip: {dst_ip} and sending_ip in cluster: {sending_ip} -----------------')
+        #     #         self.transport.write(bytes(pkt, 'utf-8'), (sending_ip, HZ_CLIENT_LISTEN_PORT))
 
-            # # choose another hz_client
-            # self.next_client = (self.next_client + 1) % (HZ_CLIENT_CNT*HZ_CLIENT_CLUSTER_CNT)
+        #     # # choose another hz_client
+        #     # self.next_client = (self.next_client + 1) % (HZ_CLIENT_CNT*HZ_CLIENT_CLUSTER_CNT)
 
-            # # redirect the flow to the new hz_client
-            # self.flow_to_client[flow] = self.hz_client_ips[self.next_client]
+        #     # # redirect the flow to the new hz_client
+        #     # self.flow_to_client[flow] = self.hz_client_ips[self.next_client]
 
-            # migration = True
+        #     # migration = True
                 
-            self.hz_client_to_packet_count[self.flow_to_client[flow]] = 0
+        #     self.hz_client_to_packet_count[self.flow_to_client[flow]] = 0
 
         return self.flow_to_client[flow]
 
@@ -140,10 +140,10 @@ class Stamper(DatagramProtocol):
         self.transport.write(data, (dst_hz_client, HZ_CLIENT_LISTEN_PORT))
 
         ##############  incrementing the packet count for the ip_addr    ################
-        if dst_hz_client not in self.hz_client_to_packet_count:
-            self.hz_client_to_packet_count[dst_hz_client] = 1
-        else:
-            self.hz_client_to_packet_count[dst_hz_client] += 1
+        # if dst_hz_client not in self.hz_client_to_packet_count:
+        #     self.hz_client_to_packet_count[dst_hz_client] = 1
+        # else:
+        #     self.hz_client_to_packet_count[dst_hz_client] += 1
 
 
 reactor.listenUDP(STAMPER_LISTEN_PORT, Stamper())

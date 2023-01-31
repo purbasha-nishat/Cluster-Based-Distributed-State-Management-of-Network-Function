@@ -304,49 +304,51 @@ class EchoUDP(DatagramProtocol):
 
 
         ############################ STATE MIGRATION AND UPDATING ALL TABLE INFO ###############################
-        elif x[0] == "migrate":
-            # 0 : migrate
-            # 1 : src_ip
-            # 2 : src_port
-            # 3 : dst_ip
-            # 4 : dst_port
-            # 5 : new_dst_ip
-            # 6 : new_dst_port
+        # elif x[0] == "migrate":
+        #     # 0 : migrate
+        #     # 1 : src_ip
+        #     # 2 : src_port
+        #     # 3 : dst_ip
+        #     # 4 : dst_port
+        #     # 5 : new_dst_ip
+        #     # 6 : new_dst_port
 
-            print(f'\n\n------------------Migrate message received by {x[3]}: {modified_pkt}--------------\n\n')
+        #     print(f'\n\n------------------Migrate message received by {x[3]}: {modified_pkt}--------------\n\n')
 
-            old_flow = (x[1], x[2], x[3], x[4])
-            new_flow = (x[1], x[2], x[5], x[6])
+        #     old_flow = (x[1], x[2], x[3], x[4])
+        #     new_flow = (x[1], x[2], x[5], x[6])
 
-            if new_flow not in self.all_flow_info:
-                self.all_flow_info[new_flow] = self.all_flow_info[old_flow]
-                del self.all_flow_info[old_flow]
+        #     if new_flow not in self.all_flow_info:
+        #         self.all_flow_info[new_flow] = self.all_flow_info[old_flow]
+        #         del self.all_flow_info[old_flow]
+
+        #     ############### FIX WITH NEXT EXPECTED PACKET ID ##############         
             
-            pkt = f'mig_update#{x[1]}#{x[2]}#{x[5]}#{x[6]}#{self.all_flow_info[new_flow]}'
+        #     pkt = f'mig_update#{x[1]}#{x[2]}#{x[5]}#{x[6]}#{self.all_flow_info[new_flow]}'
 
-            # print(f'\n\n-------MIGRATION MESSAGE : {pkt}-------------\n\n')
-            self.transport.write(bytes(pkt, 'utf-8'), (x[5], int(x[6])))
-            # self.all_flow_info
+        #     # print(f'\n\n-------MIGRATION MESSAGE : {pkt}-------------\n\n')
+        #     self.transport.write(bytes(pkt, 'utf-8'), (x[5], int(x[6])))
+        #     # self.all_flow_info
 
-            return
+        #     return
 
-        ################### UPDATE LOCAL TABLE ############################
-        elif x[0] == "mig_update":
-            # 0 : mig_update
-            # 1 : src_ip
-            # 2 : src_port
-            # 3 : new_dst_ip
-            # 4 : new_dst_port
-            # 5 : pkt_count
+        # ################### UPDATE LOCAL TABLE ############################
+        # elif x[0] == "mig_update":
+        #     # 0 : mig_update
+        #     # 1 : src_ip
+        #     # 2 : src_port
+        #     # 3 : new_dst_ip
+        #     # 4 : new_dst_port
+        #     # 5 : pkt_count
 
-            print(f'\n\n------------------Mig_update message received by {x[3]}: {modified_pkt}--------------\n\n')
+        #     print(f'\n\n------------------Mig_update message received by {x[3]}: {modified_pkt}--------------\n\n')
 
-            # old_flow = (x[1], x[2], x[3], x[4])
-            new_flow = (x[1], x[2], x[3], x[4])
+        #     # old_flow = (x[1], x[2], x[3], x[4])
+        #     new_flow = (x[1], x[2], x[3], x[4])
 
-            if new_flow not in self.flow_to_pkt_cnt:
-                self.flow_to_pkt_cnt[new_flow] = int(x[5])
-            return
+        #     if new_flow not in self.flow_to_pkt_cnt:
+        #         self.flow_to_pkt_cnt[new_flow] = int(x[5])
+        #     return
 
 
         if Statistics.received_packets == 1:
