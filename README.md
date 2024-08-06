@@ -6,7 +6,10 @@ This is the official repository containing all the codes used to generate the re
 - [Cluster Based Distributed State Management of Network Function](#cluster-based-distributed-state-management-of-network-function)
 - [Table of Contents](#table-of-contents)
 - [Setup](#setup)
-
+- [Design Goals](#design-goals)
+- [Methodology](#methodology)
+- [Experiments and Results](#experiments-and-results)
+- [Future Work](#future-work)
 
 ## Setup
 We have used [Docker](https://docs.docker.com/engine/release-notes/23.0/) for easy deplyment of the application, [Hazelcast](https://github.com/hazelcast/hazelcast) for our consensus module and [Packet Sender](https://packetsender.com/) to generate UDP packets and run the experiments.
