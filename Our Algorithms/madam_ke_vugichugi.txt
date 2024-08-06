@@ -1,0 +1,116 @@
+
+Multithreading:
+
+-> one input buffer before determining thread blocks
+
+-> multiple threads for NF processing units
+
+-> each thread will contain an input buffer before the NF processing units
+
+Intuition:
+
+In DEFT, 
+1.	Packets are processed one-by-one. No parallel processing.
+2.	Packet latency is dependent on output buffer size.
+
+Advantages of multithreading:
+
+The output buffer will be filled faster, because multiple NF processing units will feed packets to the buffer which can reduce latency.
+
+Disadvantage:
+
+Complicated design, resource hungry, needs to be tested.
+
+
+
+
+
+
+
+
+
+
+
+Clustering:
+
+-> A single cluster contains 3 primary NFs and their backups (total 6 NFs)
+
+-> Every primary NF will share its states through 2PC with its backups after processing each batch
+
+2 possible state migration decisions -
+
+(1)Clustering with 2PC among active NFs: 
+
+-> After each batch, every primary NF will initiate a 2PC to inform of its states with other primary NFs inside the cluster
+
+-> We assume that a new 2PC request will not be initiated during the entire running time of the previous 2PC
+
+THIS WILL ENSURE STRONG CONSISTENCY.
+
+OR,
+
+(2)Clustering with broadcasting among active NFs:
+
+-> After each batch, an NF will broadcast its state information with all the other NFs in the cluster.
+
+THIS WILL ENSURE EVENTUAL CONSISTENCY.
+
+Advantages:
+
+This will avoid explicit state migration to an NF during scaling. As a result, the input buffer of an NF will not be filled too often during scaling event.
+
+
+What will happen in scaling event?
+
+First of all, scaling event will only occur when the processing of a batch is finished. The decision of scaling event will not be taken while the processing of a batch. 
+
+Concern : When will we know the proper time of starting scaling event?
+
+-> If 2PC is used, then it is not an issue, because 2PC ensures strong consistency.
+-> If broadcasting is used, we need ACK to know when the scaling can be started, because we cannot determine when consistency is reached. (Eventual consistency)
+
+
+
+What will happen in the event of failover?
+
+-> For normal event, it will work similar to DEFT. (Packet duplication from switch and 2PC between primary and secondary NF)
+
+-> For a failover during scaling event,
+
+	(1) If the coordinator NF is down,
+	
+		- The NF which initiated 2PC will now have its secondary perform the 2PC again.
+	
+		- The NF which are involved in the receiving end of the 2PC will go to the wait state until the secondary NF of the down NF is active.
+		
+	(2) If one of the participant NF is down,
+		
+		- The 2PC will be terminated and a new 2PC will be initiated with the secondary NF of the downed NF of the receiving end.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
