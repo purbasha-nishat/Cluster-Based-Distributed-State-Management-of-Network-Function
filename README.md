@@ -88,7 +88,7 @@ and the load balancing unit. All the input packets from the client come through 
 <img src="Figures\Components\Primary NF.JPG">
 
 #### Failure Detection Unit(FDU)
-Our system has a failure detection unit(FDU) which detects the primary NF failure. We have inherited this concept from DEFT.
+Our system has a failure detection unit(FDU) which detects the primary NF failure. We have inherited this concept from [DEFT](https://dl.ifip.org/db/conf/cnsm/cnsm2023/1570931774.pdf).
 
 ### Operations
 
